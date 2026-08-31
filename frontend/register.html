@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShopEasy — Register</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="auth-body">
+  <div class="auth-card">
+    <a href="index.html" class="brand">🛍️ ShopEasy</a>
+    <h2>Create your account</h2>
+    <div id="message" class="message d-none"></div>
+    <form id="register-form">
+      <label for="name">Full Name</label>
+      <input type="text" id="name" placeholder="John Doe" required />
+
+      <label for="email">Email</label>
+      <input type="email" id="email" placeholder="you@example.com" required />
+
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="Minimum 6 characters" required minlength="6" />
+
+      <button type="submit" class="btn btn-primary btn-block">Register</button>
+    </form>
+    <p class="auth-alt">Already have an account? <a href="login.html">Login</a></p>
+  </div>
+  <script src="js/auth.js"></script>
+</body>
+</html>

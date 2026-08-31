@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShopEasy — Product Details</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container nav-inner">
+      <a href="index.html" class="brand">🛍️ ShopEasy</a>
+      <div class="nav-links">
+        <a href="index.html">Products</a>
+        <a href="cart.html">Cart <span id="cart-count" class="badge">0</span></a>
+        <a href="orders.html">Orders</a>
+        <span id="nav-user" class="nav-user"></span>
+        <button id="logout-btn" class="btn btn-outline d-none">Logout</button>
+        <a href="login.html" id="login-link" class="btn btn-outline">Login</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+    <div id="product-detail" class="product-detail">
+      <p class="loading">Loading product...</p>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; 2026 ShopEasy. All rights reserved.</p>
+  </footer>
+
+  <script src="js/auth.js"></script>
+  <script src="js/product.js"></script>
+</body>
+</html>
