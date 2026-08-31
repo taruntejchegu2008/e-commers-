@@ -51,8 +51,11 @@ async function initOrdersPage() {
       .map((order) => {
         const itemsHtml = order.products
           .map((p) => {
-            const name = p.productId ? p.productId.name : 'Unknown product';
-            const price = p.productId ? p.productId.price : 0;
+            // If the product was deleted from the catalog, productId stays an
+            // unpopulated ObjectId (no .name/.price). Show a graceful fallback.
+            const productExists = p.productId && typeof p.productId === 'object' && p.productId.name;
+            const name = productExists ? p.productId.name : 'Product no longer available';
+            const price = productExists ? p.productId.price : 0;
             return `
               <div class="order-item">
                 <span>${name} × ${p.quantity}</span>

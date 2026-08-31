@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShopEasy — Admin Panel</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container nav-inner">
+      <a href="index.html" class="brand">🛍️ ShopEasy</a>
+      <div class="nav-links">
+        <a href="index.html">Products</a>
+        <a href="cart.html">Cart <span id="cart-count" class="badge">0</span></a>
+        <a href="orders.html">Orders</a>
+        <span id="nav-user" class="nav-user"></span>
+        <button id="logout-btn" class="btn btn-outline d-none">Logout</button>
+        <a href="login.html" id="login-link" class="btn btn-outline">Login</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+    <h1>Admin Panel</h1>
+    <p id="message" class="message d-none"></p>
+
+    <section class="admin-form-card">
+      <h2 id="form-title">Add New Product</h2>
+      <form id="product-form">
+        <input type="hidden" id="product-id">
+        <div class="form-group">
+          <label for="name">Name</label>
+          <input type="text" id="name" required>
+        </div>
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea id="description" rows="3" required></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="price">Price (₹)</label>
+            <input type="number" id="price" min="0" step="0.01" required>
+          </div>
+          <div class="form-group">
+            <label for="stock">Stock</label>
+            <input type="number" id="stock" min="0" step="1" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="image">Image URL</label>
+          <input type="url" id="image" placeholder="https://via.placeholder.com/300x300?text=No+Image">
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="save-btn">Save Product</button>
+          <button type="button" class="btn btn-outline d-none" id="cancel-btn">Cancel Edit</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="admin-table-section">
+      <h2>Manage Products</h2>
+      <div class="table-responsive">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Image</th>
+              <th>Name</th>
+              <th>Price</th>
+              <th>Stock</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="products-body">
+            <tr><td colspan="5" class="loading">Loading products...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; 2026 ShopEasy. All rights reserved.</p>
+  </footer>
+
+  <script src="js/auth.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

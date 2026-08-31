@@ -8,6 +8,7 @@
 
 const mongoose = require('mongoose');
 const Product = require('./models/Product');
+const User = require('./models/User');
 require('dotenv').config(); // loads backend/.env
 
 const products = [
@@ -94,6 +95,22 @@ async function run() {
   const seeded = await Product.insertMany(products);
   console.log(`Seeded ${seeded.length} products:`);
   seeded.forEach((p) => console.log(`  - ${p.name} (₹${p.price}, stock: ${p.stock})`));
+
+  // Seed an admin user so the admin panel can be tested
+  const existingAdmin = await User.findOne({ email: 'admin@shopeasy.com' });
+  let adminUser;
+  if (existingAdmin) {
+    adminUser = existingAdmin;
+    console.log(`Admin user already exists (${adminUser.email})`);
+  } else {
+    adminUser = await User.create({
+      name: 'ShopEasy Admin',
+      email: 'admin@shopeasy.com',
+      password: 'admin123',
+      isAdmin: true,
+    });
+    console.log(`Seeded admin user: ${adminUser.email} / admin123`);
+  }
 
   process.exit(0);
 }
