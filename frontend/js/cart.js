@@ -116,7 +116,7 @@ function renderCartPage() {
 async function checkout() {
   const token = getToken();
   if (!token) {
-    window.location.href = 'login.html?redirect=cart.html';
+    window.location.href = 'login.html';
     return;
   }
 
@@ -129,6 +129,13 @@ async function checkout() {
   }));
 
   const msg = document.getElementById('message');
+  const btn = document.getElementById('checkout-btn');
+
+  // Disable button while submitting to prevent duplicate orders
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Placing order...';
+  }
 
   try {
     const res = await fetch(`${API_URL}/orders`, {
@@ -140,6 +147,11 @@ async function checkout() {
     const data = await res.json();
 
     if (!res.ok) {
+      // Re-enable button on failure
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Proceed to Checkout';
+      }
       if (msg) showMessage(data.message || 'Checkout failed', 'error');
       else alert(data.message || 'Checkout failed');
       return;
@@ -163,5 +175,13 @@ async function checkout() {
 
 // --- Initialise cart page on load ---
 document.addEventListener('DOMContentLoaded', () => {
-  if (document.getElementById('cart-container')) renderCartPage();
+  if (!document.getElementById('cart-container')) return;
+
+  // Redirect to login if no valid token is present (protected page)
+  if (!isAuthenticated()) {
+    window.location.href = 'login.html';
+    return;
+  }
+
+  renderCartPage();
 });

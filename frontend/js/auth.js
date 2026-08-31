@@ -72,6 +72,10 @@ function showMessage(text, type = 'error') {
 // --- Format currency ---
 const formatCurrency = (amount) => `$${Number(amount).toFixed(2)}`;
 
+// --- Client-side validation helpers ---
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const isValidEmail = (email) => EMAIL_REGEX.test(email);
+
 // --- Initialize on every page ---
 document.addEventListener('DOMContentLoaded', () => {
   // Logout button handler
@@ -87,6 +91,16 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
+
+      // Client-side validation: required fields + email format
+      if (!email || !password) {
+        showMessage('Please fill in all fields', 'error');
+        return;
+      }
+      if (!isValidEmail(email)) {
+        showMessage('Please enter a valid email address', 'error');
+        return;
+      }
 
       try {
         const res = await fetch(`${API_URL}/auth/login`, {
@@ -120,6 +134,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
 
+      // Client-side validation: required fields, email format, password length
+      if (!name || !email || !password) {
+        showMessage('Please fill in all fields', 'error');
+        return;
+      }
+      if (!isValidEmail(email)) {
+        showMessage('Please enter a valid email address', 'error');
+        return;
+      }
       if (password.length < 6) {
         showMessage('Password must be at least 6 characters', 'error');
         return;

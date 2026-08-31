@@ -1,0 +1,440 @@
+{
+  "info": {
+    "_postman_id": "e2a6d5c3-7b1f-4c9e-9f2a-1d4b6c8a0e91",
+    "name": "ShopEasy REST API",
+    "description": "Postman collection for the ShopEasy e-commerce REST API.\nBase URL: http://localhost:5000/api\n\nPre-flight steps:\n1. Start MongoDB + run `cd backend && npm start` to launch the API.\n2. Seed sample products: `cd backend && npm run seed`.\n3. Import this collection into Postman.\n\nHow to run:\n  - Run the 'Auth' folder first: 'Register - success' stores the JWT and user id into collection-level variables for all protected endpoints.\n  - The 'Products / Get all products' request auto-stores the first product ID into the 'firstProductId' collection variable, so the 'Orders / POST /orders - create with token' request works automatically (no manual copy-paste needed).\n  - Run the tests in order within each folder; the Postman order matters because of variable chaining.\n\nEndpoints tested (all 8):\n  POST /auth/register          (201 on success, 400 on duplicate)\n  POST /auth/login             (200 on success, 401 on wrong password)\n  GET  /products               (200, public)\n  GET  /products/:id           (200 on valid id)\n  POST /products               (201 with valid JWT, 401 without)\n  POST /orders                 (201 with valid JWT + product id, 401 without)\n  GET  /orders                 (200 with valid JWT)\n\nAll tests use collection-level variables: {{baseUrl}}, {{token}}, {{userId}}, {{firstProductId}}.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api" },
+    { "key": "token", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "firstProductId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register - success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', function () { pm.response.to.have.status(201); });",
+                  "",
+                  "pm.test('Response has _id, name, email, token', function () {",
+                  "  var body = pm.response.json();",
+                  "  pm.expect(body).to.have.all.keys('_id', 'name', 'email', 'token');",
+                  "});",
+                  "",
+                  "pm.test('Returned email matches request email', function () {",
+                  "  var body = pm.response.json();",
+                  "  var req = JSON.parse(pm.request.body.raw);",
+                  "  pm.expect(body.email).to.eql(req.email);",
+                  "});",
+                  "",
+                  "// Save token, email and userId for use by later requests.",
+                  "// Protected endpoints (orders) depend on 'token';",
+                  "// the duplicate-email and login tests use the same credential.",
+                  "var body = pm.response.json();",
+                  "pm.collectionVariables.set('token', body.token);",
+                  "pm.collectionVariables.set('userId', body._id);",
+                  "",
+                  "// Also store the email so the Login test can use it",
+                  "pm.collectionVariables.set('loginEmail', req ? req.email : body.email);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"QA Tester {{userId}}\",\n  \"email\": \"qa.test.{{$timestamp}}@shopeasy.test\",\n  \"password\": \"securePass123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Registers a new user with a timestamp-based unique email. Returns JWT.\nPost-response script stores token, userId, and loginEmail in collection variables."
+          },
+          "response": []
+        },
+        {
+          "name": "Register - dup_email 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 Bad Request', function () { pm.response.to.have.status(400); });",
+                  "",
+                  "pm.test('Error message says already exists', function () {",
+                  "  var body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('message');",
+                  "  pm.expect(body.message).to.match(/already exists/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dup Tester\",\n  \"email\": \"qa.test.{{$timestamp}}@shopeasy.test\",\n  \"password\": \"securePass123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Registers a user, then run this request a SECOND time to hit the duplicate-email guard. Expects 400 with 'already exists'.\nIMPORTANT: Run 'Register - success' first, then run this request TWICE."
+          },
+          "response": []
+        },
+        {
+          "name": "Login - success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+                  "",
+                  "pm.test('Returns a JWT token', function () {",
+                  "  var body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('token');",
+                  "  pm.expect(body.token.length).to.be.above(20);",
+                  "});",
+                  "",
+                  "// Refresh token from fresh login so downstream tests use the login-fresh credential.",
+                  "pm.collectionVariables.set('token', pm.response.json().token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{loginEmail}}\",\n  \"password\": \"securePass123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Logs in using the email from the Register test (saved as {{loginEmail}}). Returns a JWT.\nRun 'Register - success' first to set the variable."
+          },
+          "response": []
+        },
+        {
+          "name": "Login - wrong_password 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 Unauthorized', function () { pm.response.to.have.status(401); });",
+                  "",
+                  "pm.test('Error message says invalid credentials', function () {",
+                  "  var body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('message');",
+                  "  pm.expect(body.message).to.match(/invalid (email or password)/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{loginEmail}}\",\n  \"password\": \"wrong_password_xyz\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Logs in with a wrong password for the previously registered email. Expects 401 with 'Invalid email or password'."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Get all products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+                  "",
+                  "pm.test('Returns an array', function () {",
+                  "  var body = pm.response.json();",
+                  "  pm.expect(body).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Each product has name, price, stock, _id', function () {",
+                  "  var body = pm.response.json();",
+                  "  if (body.length > 0) {",
+                  "    var p = body[0];",
+                  "    pm.expect(p).to.include.all.keys('_id', 'name', 'price', 'stock');",
+                  "  }",
+                  "});",
+                  "",
+                  "// Auto-store the first product ID so the Order tests work without manual edits.",
+                  "var body = pm.response.json();",
+                  "if (body.length > 0) {",
+                  "  pm.collectionVariables.set('firstProductId', body[0]._id);",
+                  "  console.log('firstProductId set to ' + body[0]._id);",
+                  "} else {",
+                  "  console.warn('GET /products returned an empty array — run `npm run seed` first.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"]
+            },
+            "description": "Fetches all products (public, no auth). Post-response script saves the first product's _id into collection variable 'firstProductId' for the create-order test."
+          },
+          "response": []
+        },
+        {
+          "name": "Get product by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+                  "",
+                  "pm.test('Returned product matches requested _id', function () {",
+                  "  var body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('_id');",
+                  "  pm.expect(body).to.have.property('name');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/{{firstProductId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "{{firstProductId}}"]
+            },
+            "description": "Fetches a single product using the ID captured by 'Get all products'."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /products - create",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var code = pm.response.code;",
+                  "pm.test('Returns 201, 401, or 400 (all valid outcomes)', function () {",
+                  "  pm.expect([201, 401, 400]).to.include(code);",
+                  "});",
+                  "",
+                  "pm.test('Created product has _id', function () {",
+                  "  if (code === 201) {",
+                  "    pm.expect(pm.response.json()).to.have.property('_id');",
+                  "    pm.expect(pm.response.json().price).to.eql(999);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test Widget {{userId}}\",\n  \"description\": \"Created by Postman collection to test the authenticated POST /products endpoint.\",\n  \"price\": 999,\n  \"stock\": 25,\n  \"image\": \"https://via.placeholder.com/300x300?text=Test+Widget\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"]
+            },
+            "description": "Creates a product. JWT-protected: the Authorization header uses {{token}} (from Register/Login).\nExpect 201 if authenticated, 401 if not."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "POST /orders - create with token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', function () { pm.response.to.have.status(201); });",
+                  "",
+                  "pm.test('Order has _id, totalAmount, products[], and userId', function () {",
+                  "  var body = pm.response.json();",
+                  "  pm.expect(body).to.have.all.keys('_id', 'userId', 'products', 'totalAmount');",
+                  "  pm.expect(body.products).to.be.an('array');",
+                  "  pm.expect(body.products.length).to.be.above(0);",
+                  "  pm.expect(body.totalAmount).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Ordered product matches the one we sent', function () {",
+                  "  var body = pm.response.json();",
+                  "  var reqBody = JSON.parse(pm.request.body.raw);",
+                  "  pm.expect(body.products[0].quantity).to.eql(reqBody.products[0].quantity);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"products\": [\n    {\n      \"productId\": \"{{firstProductId}}\",\n      \"quantity\": 2\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"]
+            },
+            "description": "Creates an order for the authenticated user.\nRequires {{token}} (from Register/Login) and {{firstProductId}} (from Get all products).\nDeducts stock server-side and returns the populated order with totalAmount."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /orders - no token 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 Unauthorized', function () { pm.response.to.have.status(401); });",
+                  "",
+                  "pm.test('Error message says not authorized', function () {",
+                  "  var body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('message');",
+                  "  pm.expect(body.message).to.match(/not authorized/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"products\": [\n    {\n      \"productId\": \"{{firstProductId}}\",\n      \"quantity\": 1\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"]
+            },
+            "description": "Attempts to create an order WITHOUT any Authorization header. The protect middleware must return 401."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /orders - order history",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+                  "",
+                  "pm.test('Returns an array', function () {",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Newest order first', function () {",
+                  "  var body = pm.response.json();",
+                  "  if (body.length >= 2) {",
+                  "    var first = new Date(body[0].createdAt).getTime();",
+                  "    var second = new Date(body[1].createdAt).getTime();",
+                  "    pm.expect(first).to.be.above(second);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"]
+            },
+            "description": "Fetches the authenticated user's order history, newest first. Requires a valid token."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
