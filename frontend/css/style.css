@@ -384,6 +384,31 @@ body {
   color: var(--text-muted);
 }
 
+.order-status {
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+.status-pending {
+  color: #b45309;
+  background: #fef3c7;
+}
+.status-info {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+.status-ok {
+  color: #15803d;
+  background: #dcfce7;
+}
+.status-cancel {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
 .order-items {
   margin-bottom: 12px;
 }
@@ -488,6 +513,12 @@ body {
   background: #d1fae5;
   color: var(--success);
   border: 1px solid #a7f3d0;
+}
+
+.message.info {
+  background: #dbeafe;
+  color: var(--primary);
+  border: 1px solid #bfdbfe;
 }
 
 /* ===== Misc ===== */
@@ -607,6 +638,19 @@ body {
 .actions-cell {
   display: flex;
   gap: 8px;
+}
+
+.status-select {
+  padding: 5px 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: #fff;
+  cursor: pointer;
+}
+.status-select:focus {
+  outline: none;
+  border-color: var(--primary);
 }
 
 .btn-small {

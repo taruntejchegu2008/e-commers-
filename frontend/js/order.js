@@ -47,22 +47,42 @@ async function initOrdersPage() {
       return;
     }
 
+    // Build the line items for an order. Prefer the order's own snapshot,
+    // falling back to the populated product (older orders) so the history is
+    // always readable even after a product is edited or deleted.
+    function orderLineItems(order) {
+      if (order.itemsSnapshot && order.itemsSnapshot.length > 0) {
+        return order.itemsSnapshot.map((s) => ({ name: s.name, price: s.price, quantity: s.quantity }));
+      }
+      return (order.products || []).map((p) => {
+        const productExists = p.productId && typeof p.productId === 'object' && p.productId.name;
+        return {
+          name: productExists ? p.productId.name : 'Product no longer available',
+          price: productExists ? p.productId.price : 0,
+          quantity: p.quantity,
+        };
+      });
+    }
+
+    // CSS class per status for the coloured badge
+    function statusClass(status) {
+      const s = (status || 'Pending').toLowerCase();
+      if (['delivered', 'processing'].includes(s)) return 'status-ok';
+      if (s === 'cancelled') return 'status-cancel';
+      if (s === 'shipped') return 'status-info';
+      return 'status-pending';
+    }
+
     const ordersHtml = orders
       .map((order) => {
-        const itemsHtml = order.products
-          .map((p) => {
-            // If the product was deleted from the catalog, productId stays an
-            // unpopulated ObjectId (no .name/.price). Show a graceful fallback.
-            const productExists = p.productId && typeof p.productId === 'object' && p.productId.name;
-            const name = productExists ? p.productId.name : 'Product no longer available';
-            const price = productExists ? p.productId.price : 0;
-            return `
+        const status = order.status || 'Pending';
+        const itemsHtml = orderLineItems(order)
+          .map((it) => `
               <div class="order-item">
-                <span>${name} × ${p.quantity}</span>
-                <span>${formatCurrency(price * p.quantity)}</span>
+                <span>${it.name} × ${it.quantity}</span>
+                <span>${formatCurrency(it.price * it.quantity)}</span>
               </div>
-            `;
-          })
+            `)
           .join('');
 
         // Use the MongoDB _id as the order number for this version.
@@ -73,6 +93,7 @@ async function initOrdersPage() {
           <div class="order-card">
             <div class="order-header">
               <span class="order-number">Order #${orderNumber}</span>
+              <span class="order-status ${statusClass(status)}">${status}</span>
               <span class="order-date">${formatDate(order.createdAt)}</span>
             </div>
             <div class="order-items">${itemsHtml}</div>

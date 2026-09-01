@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { adminClient, anonClient, isSupabaseAuthEnabled } = require('../config/supabase');
 
 const router = express.Router();
 
@@ -34,6 +35,32 @@ function toTrimmedString(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+// Upsert the app-level Mongo user that orders reference. The password column
+// is a random placeholder when Supabase owns authentication (Supabase verifies
+// the real password); legacy local users keep their bcrypt hash.
+async function upsertMongoUser({ name, email, isAdmin = false, supabaseUid = null }) {
+  const update = { name, email };
+  if (supabaseUid) update.supabaseUid = supabaseUid;
+  if (isAdmin) update.isAdmin = true;
+
+  const existing = await User.findOne({ email });
+  if (existing) {
+    existing.name = name;
+    if (supabaseUid) existing.supabaseUid = supabaseUid;
+    if (isAdmin) existing.isAdmin = true;
+    await existing.save();
+    return existing;
+  }
+
+  return User.create({
+    name,
+    email,
+    password: require('crypto').randomBytes(32).toString('hex'), // hashed by pre-save hook
+    isAdmin,
+    supabaseUid,
+  });
+}
+
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
@@ -55,6 +82,33 @@ router.post('/register', async (req, res) => {
     if (passwordErrors.length > 0) {
       return res.status(400).json({
         message: `Password must contain ${passwordErrors.join(', ')}`,
+      });
+    }
+
+    // If Supabase Auth is enabled, create the identity there first.
+    if (isSupabaseAuthEnabled()) {
+      const { error: sbError } = await adminClient.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { name },
+      });
+
+      if (sbError) {
+        if (/already.*registered|already.*exists/i.test(sbError.message)) {
+          return res.status(400).json({ message: 'A user with this email already exists' });
+        }
+        return res.status(400).json({ message: sbError.message });
+      }
+
+      // Create the linked Mongo user for orders/references.
+      const user = await upsertMongoUser({ name, email, isAdmin: false });
+      return res.status(201).json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        isAdmin: user.isAdmin,
+        token: generateToken(user._id, user.isAdmin),
       });
     }
 
@@ -87,6 +141,43 @@ router.post('/login', async (req, res) => {
 
     if (!email || !password) {
       return res.status(400).json({ message: 'Please provide email and password' });
+    }
+
+    // If Supabase Auth is enabled, verify credentials with Supabase.
+    if (isSupabaseAuthEnabled()) {
+      const { data, error } = await anonClient.auth.signInWithPassword({ email, password });
+
+      if (!error && data && data.user) {
+        const meta = data.user.user_metadata || {};
+        const user = await upsertMongoUser({
+          name: meta.name || email.split('@')[0],
+          email,
+          isAdmin: false,
+          supabaseUid: data.user.id,
+        });
+        return res.json({
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          isAdmin: user.isAdmin,
+          token: generateToken(user._id, user.isAdmin),
+        });
+      }
+
+      // Fallback: legacy local user (e.g. the seeded admin, which predates
+      // Supabase) can still sign in with its stored bcrypt hash.
+      const legacy = await User.findOne({ email });
+      if (legacy && (await legacy.comparePassword(password))) {
+        return res.json({
+          _id: legacy._id,
+          name: legacy.name,
+          email: legacy.email,
+          isAdmin: legacy.isAdmin,
+          token: generateToken(legacy._id, legacy.isAdmin),
+        });
+      }
+
+      return res.status(401).json({ message: 'Invalid email or password' });
     }
 
     // Find user by email

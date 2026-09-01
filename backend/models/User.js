@@ -23,6 +23,12 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  // Supabase Auth user UUID (when Supabase auth is enabled). Kept so we can
+  // link a Mongo user record to its Supabase Auth identity.
+  supabaseUid: {
+    type: String,
+    sparse: true,
+  },
 }, { timestamps: true });
 
 // Hash password before saving

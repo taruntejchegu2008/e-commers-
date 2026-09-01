@@ -103,6 +103,26 @@ function resetForm() {
   document.getElementById('form-title').textContent = 'Add New Product';
   document.getElementById('save-btn').textContent = 'Save Product';
   document.getElementById('cancel-btn').classList.add('d-none');
+  const fileInput = document.getElementById('image-file');
+  if (fileInput) fileInput.value = '';
+}
+
+// Upload a file to Supabase Storage, returns the public URL
+async function uploadImage(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(`${API_URL}/upload`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getToken()}` },
+    body: formData,
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || 'Upload failed');
+  }
+  return data.url;
 }
 
 // Handle form submit (create or update)
@@ -113,20 +133,41 @@ async function handleSubmit(e) {
     return;
   }
 
+  const saveBtn = document.getElementById('save-btn');
+  const fileInput = document.getElementById('image-file');
+  let image = document.getElementById('image').value.trim();
+
+  // If a file was picked, upload it to Supabase and use the returned URL.
+  if (fileInput && fileInput.files && fileInput.files.length > 0) {
+    try {
+      showMessage('Uploading image...', 'info');
+      if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Uploading...'; }
+      image = await uploadImage(fileInput.files[0]);
+    } catch (err) {
+      showMessage(err.message, 'error');
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = editingId ? 'Update Product' : 'Save Product'; }
+      return;
+    }
+  }
+
+  image = image || 'https://via.placeholder.com/300x300?text=No+Image';
+
   const payload = {
     name: document.getElementById('name').value.trim(),
     description: document.getElementById('description').value.trim(),
     price: Number(document.getElementById('price').value),
     stock: Number(document.getElementById('stock').value),
-    image: document.getElementById('image').value.trim() || 'https://via.placeholder.com/300x300?text=No+Image',
+    image,
   };
 
   if (!payload.name || !payload.description || isNaN(payload.price) || isNaN(payload.stock)) {
     showMessage('Please fill in all required fields.', 'error');
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = editingId ? 'Update Product' : 'Save Product'; }
     return;
   }
   if (payload.price < 0 || payload.stock < 0) {
     showMessage('Price and stock must be non-negative.', 'error');
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = editingId ? 'Update Product' : 'Save Product'; }
     return;
   }
 
@@ -143,6 +184,7 @@ async function handleSubmit(e) {
     const data = await res.json();
     if (!res.ok) {
       showMessage(data.message || 'Failed to save product', 'error');
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = editingId ? 'Update Product' : 'Save Product'; }
       return;
     }
 
@@ -151,6 +193,9 @@ async function handleSubmit(e) {
     loadProducts();
   } catch (err) {
     showMessage('Network error. Is the server running?', 'error');
+  } finally {
+    if (fileInput) fileInput.value = '';
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = editingId ? 'Update Product' : 'Save Product'; }
   }
 }
 
@@ -182,6 +227,122 @@ async function deleteProduct(id) {
   }
 }
 
+// ===== Order Management =====
+
+const ORDER_STATUSES = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+
+// Fetch all orders (admin-only endpoint)
+async function fetchAllOrders() {
+  const res = await fetch(`${API_URL}/orders/all`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch orders');
+  return res.json();
+}
+
+// Build a readable list of line items for an order
+function orderItemsText(order) {
+  const snapshot = order.itemsSnapshot && order.itemsSnapshot.length ? order.itemsSnapshot : [];
+  const lines = snapshot.map((s) => `${s.name} × ${s.quantity}`);
+
+  if (lines.length === 0 && order.products) {
+    order.products.forEach((p) => {
+      const name = p.productId && typeof p.productId === 'object' && p.productId.name
+        ? p.productId.name
+        : 'Product no longer available';
+      lines.push(`${name} × ${p.quantity}`);
+    });
+  }
+  return lines.join('<br>') || '—';
+}
+
+function orderStatusClass(status) {
+  const s = (status || 'Pending').toLowerCase();
+  if (['delivered', 'processing'].includes(s)) return 'status-ok';
+  if (s === 'cancelled') return 'status-cancel';
+  if (s === 'shipped') return 'status-info';
+  return 'status-pending';
+}
+
+// Render the orders table
+function renderOrdersTable(orders, body) {
+  body.innerHTML = '';
+
+  if (orders.length === 0) {
+    body.innerHTML = '<tr><td colspan="6" class="cart-empty">No orders yet.</td></tr>';
+    return;
+  }
+
+  orders.forEach((order) => {
+    const customer = order.userId && order.userId.name ? order.userId.name : 'Unknown';
+    const orderNumber = order._id.slice(-8).toUpperCase();
+    const date = new Date(order.createdAt).toLocaleString('en-US', {
+      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+
+    const options = ORDER_STATUSES.map(
+      (s) => `<option value="${s}" ${s === order.status ? 'selected' : ''}>${s}</option>`
+    ).join('');
+
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td class="order-number" style="white-space:nowrap">#${orderNumber}</td>
+      <td>${customer}</td>
+      <td>${orderItemsText(order)}</td>
+      <td>${formatCurrency(order.totalAmount)}</td>
+      <td style="white-space:nowrap">${date}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="order-status ${orderStatusClass(order.status)}">${order.status}</span>
+          <select class="status-select" data-id="${order._id}">
+            ${options}
+          </select>
+        </div>
+      </td>
+    `;
+    body.appendChild(row);
+  });
+
+  // Bind status change handlers
+  body.querySelectorAll('.status-select').forEach((sel) => {
+    sel.addEventListener('change', () => updateOrderStatus(sel.dataset.id, sel.value));
+  });
+}
+
+// Update an order's status via the admin endpoint
+async function updateOrderStatus(orderId, status) {
+  try {
+    const res = await fetch(`${API_URL}/orders/${orderId}/status`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ status }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      showMessage(data.message || 'Failed to update order status', 'error');
+      loadOrders(); // revert the dropdown
+      return;
+    }
+
+    showMessage(`Order #${orderId.slice(-8).toUpperCase()} marked as ${status}.`, 'success');
+    loadOrders();
+  } catch (err) {
+    showMessage('Network error. Is the server running?', 'error');
+    loadOrders();
+  }
+}
+
+// Load all orders into the table
+async function loadOrders() {
+  const body = document.getElementById('orders-body');
+  body.innerHTML = '<tr><td colspan="6" class="loading">Loading orders...</td></tr>';
+  try {
+    const orders = await fetchAllOrders();
+    renderOrdersTable(orders, body);
+  } catch (err) {
+    body.innerHTML = `<tr><td colspan="6" class="cart-empty">${err.message}</td></tr>`;
+  }
+}
+
 // --- Initialize the admin page ---
 document.addEventListener('DOMContentLoaded', () => {
   if (!requireAuth()) return;
@@ -202,4 +363,5 @@ function initAdminPage() {
   if (cancelBtn) cancelBtn.addEventListener('click', resetForm);
 
   loadProducts();
+  loadOrders();
 }

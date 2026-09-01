@@ -10,6 +10,7 @@ require('dotenv').config();
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
 
 // ============================================================
 // Fail-fast environment validation (never run with a weak or
@@ -120,6 +121,7 @@ app.use('/api', globalLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // --- 404 handler for unknown API routes (returns JSON, not the SPA) ---
 app.use('/api', (req, res) => {
