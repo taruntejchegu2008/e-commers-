@@ -87,7 +87,7 @@ router.post('/register', async (req, res) => {
 
     // If Supabase Auth is enabled, create the identity there first.
     if (isSupabaseAuthEnabled()) {
-      const { error: sbError } = await adminClient.auth.admin.createUser({
+      const { data: sbUser, error: sbError } = await adminClient.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
@@ -101,8 +101,14 @@ router.post('/register', async (req, res) => {
         return res.status(400).json({ message: sbError.message });
       }
 
-      // Create the linked Mongo user for orders/references.
-      const user = await upsertMongoUser({ name, email, isAdmin: false });
+      // Create the linked Mongo user for orders/references, storing the
+      // Supabase Auth UUID so orders can reference the same user in Supabase.
+      const user = await upsertMongoUser({
+        name,
+        email,
+        isAdmin: false,
+        supabaseUid: (sbUser && sbUser.user && sbUser.user.id) || null,
+      });
       return res.status(201).json({
         _id: user._id,
         name: user.name,

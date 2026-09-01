@@ -3,6 +3,7 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const { protect } = require('../middleware/authMiddleware');
 const { admin } = require('../middleware/adminMiddleware');
+const { insertOrder, updateOrderStatus } = require('../utils/supabaseSync');
 
 const router = express.Router();
 
@@ -131,6 +132,21 @@ router.post('/', protect, async (req, res) => {
     });
 
     const populatedOrder = await Order.findById(order._id).populate('products.productId', 'name price image');
+
+    // Best-effort mirror into Supabase. Never blocks or fails the response.
+    await insertOrder({
+      mongoId: order._id.toString(),
+      userId: req.user.supabaseUid || null,
+      userEmail: req.user.email,
+      customerName: ship.fullName,
+      totalAmount: order.totalAmount,
+      status: 'Placed',
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+      shipping: ship,
+      items: itemsSnapshot,
+    });
+
     return res.status(201).json(populatedOrder);
   } catch (error) {
     // Best-effort restore of any stock deducted before the unexpected failure,
@@ -187,6 +203,9 @@ router.put('/:id/status', protect, admin, async (req, res) => {
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
+
+    // Best-effort mirror of the new status into Supabase.
+    await updateOrderStatus(order._id.toString(), status);
 
     res.json(order);
   } catch (error) {
