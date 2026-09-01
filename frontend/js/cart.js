@@ -88,10 +88,10 @@ function renderCartPage() {
             <div class="price">${formatCurrency(item.price)}</div>
           </div>
           <div class="item-controls">
-            <button class="qty-btn" onclick="updateQuantity('${item.productId}', ${item.quantity - 1})">−</button>
+            <button class="qty-btn" data-action="decrement" data-id="${item.productId}">−</button>
             <span>${item.quantity}</span>
-            <button class="qty-btn" onclick="updateQuantity('${item.productId}', ${item.quantity + 1})">+</button>
-            <button class="btn btn-danger" onclick="removeFromCart('${item.productId}')">Remove</button>
+            <button class="qty-btn" data-action="increment" data-id="${item.productId}">+</button>
+            <button class="btn btn-danger" data-action="remove" data-id="${item.productId}">Remove</button>
           </div>
           <div class="price">${formatCurrency(lineTotal)}</div>
         </div>
@@ -108,6 +108,23 @@ function renderCartPage() {
       <button id="checkout-btn" class="btn btn-primary">Proceed to Checkout</button>
     </div>
   `;
+
+  // Delegate all cart item actions (increment/decrement/remove) so they
+  // work without inline handlers (which helmet CSP blocks).
+  container.querySelectorAll('[data-action]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const { action, id } = btn.dataset;
+      if (action === 'increment') {
+        const item = getCart().find((i) => i.productId === id);
+        updateQuantity(id, (item ? item.quantity : 0) + 1);
+      } else if (action === 'decrement') {
+        const item = getCart().find((i) => i.productId === id);
+        updateQuantity(id, (item ? item.quantity : 0) - 1);
+      } else if (action === 'remove') {
+        removeFromCart(id);
+      }
+    });
+  });
 
   document.getElementById('checkout-btn').addEventListener('click', () => {
     window.location.href = 'checkout.html';
