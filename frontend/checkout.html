@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShopEasy — Checkout</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container nav-inner">
+      <a href="index.html" class="brand">🛍️ ShopEasy</a>
+      <div class="nav-links">
+        <a href="index.html">Products</a>
+        <a href="cart.html">Cart <span id="cart-count" class="badge">0</span></a>
+        <a href="orders.html">Orders</a>
+        <a href="admin.html" id="admin-link" class="d-none">Admin</a>
+        <span id="nav-user" class="nav-user"></span>
+        <button id="logout-btn" class="btn btn-outline d-none">Logout</button>
+        <a href="login.html" id="login-link" class="btn btn-outline">Login</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+    <h1>Checkout</h1>
+    <div id="message" class="message d-none"></div>
+    <div id="checkout-cart" class="loading">Loading your cart...</div>
+
+    <div class="checkout-layout">
+      <!-- Left: shipping + payment -->
+      <section class="checkout-form">
+        <h2>1. Delivery Details</h2>
+        <div class="form-group">
+          <label for="fullName">Full Name</label>
+          <input type="text" id="fullName" placeholder="Customer name" required>
+        </div>
+        <div class="form-group">
+          <label for="phone">Phone Number</label>
+          <input type="tel" id="phone" placeholder="10-digit mobile number" maxlength="10" required>
+        </div>
+        <div class="form-group">
+          <label for="address">Address</label>
+          <textarea id="address" rows="3" placeholder="House no, street, area" required></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="city">City</label>
+            <input type="text" id="city" placeholder="City" required>
+          </div>
+          <div class="form-group">
+            <label for="state">State</label>
+            <input type="text" id="state" placeholder="State" required>
+          </div>
+          <div class="form-group">
+            <label for="pincode">PIN Code</label>
+            <input type="text" id="pincode" placeholder="6-digit PIN" maxlength="6" required>
+          </div>
+        </div>
+
+        <h2>2. Payment Method</h2>
+        <div class="pay-options">
+          <label class="pay-option">
+            <input type="radio" name="payment" value="cod" checked>
+            <span class="pay-box">
+              <strong>Cash on Delivery</strong>
+              <small>Pay when your order arrives</small>
+            </span>
+          </label>
+          <label class="pay-option">
+            <input type="radio" name="payment" value="card">
+            <span class="pay-box">
+              <strong>Credit / Debit Card</strong>
+              <small>Visa, Mastercard, RuPay</small>
+            </span>
+          </label>
+          <label class="pay-option">
+            <input type="radio" name="payment" value="upi">
+            <span class="pay-box">
+              <strong>UPI</strong>
+              <small>GPay, PhonePe, Paytm & more</small>
+            </span>
+          </label>
+        </div>
+
+        <!-- Card details (shown when Card selected) -->
+        <div class="pay-fields d-none" id="card-fields">
+          <div class="form-group">
+            <label for="cardName">Name on Card</label>
+            <input type="text" id="cardName" placeholder="As printed on card">
+          </div>
+          <div class="form-group">
+            <label for="cardNumber">Card Number</label>
+            <input type="text" id="cardNumber" inputmode="numeric" placeholder="1234 5678 9012 3456" maxlength="19">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="cardExpiry">Expiry (MM/YY)</label>
+              <input type="text" id="cardExpiry" placeholder="MM/YY" maxlength="5">
+            </div>
+            <div class="form-group">
+              <label for="cardCvv">CVV</label>
+              <input type="password" id="cardCvv" inputmode="numeric" placeholder="•••" maxlength="4">
+            </div>
+          </div>
+        </div>
+
+        <!-- UPI details (shown when UPI selected) -->
+        <div class="pay-fields d-none" id="upi-fields">
+          <div class="form-group">
+            <label for="upiId">UPI ID</label>
+            <input type="text" id="upiId" placeholder="yourname@okhdfcbank">
+          </div>
+        </div>
+
+        <button id="place-order-btn" class="btn btn-primary btn-block">Place Order</button>
+        <p class="field-hint">This is a simulated payment flow. No real money is charged.</p>
+      </section>
+
+      <!-- Right: order summary -->
+      <aside class="checkout-summary">
+        <h2>Order Summary</h2>
+        <div id="summary-items"></div>
+        <div class="summary-total">
+          <span>Total</span>
+          <span id="summary-total"></span>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; 2026 ShopEasy. All rights reserved.</p>
+  </footer>
+
+  <script src="js/auth.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/checkout.js"></script>
+</body>
+</html>

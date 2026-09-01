@@ -229,7 +229,7 @@ async function deleteProduct(id) {
 
 // ===== Order Management =====
 
-const ORDER_STATUSES = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+const ORDER_STATUSES = ['Placed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
 // Fetch all orders (admin-only endpoint)
 async function fetchAllOrders() {
@@ -258,7 +258,7 @@ function orderStatusClass(status) {
   const s = (status || 'Pending').toLowerCase();
   if (['delivered', 'processing'].includes(s)) return 'status-ok';
   if (s === 'cancelled') return 'status-cancel';
-  if (s === 'shipped') return 'status-info';
+  if (s === 'shipped' || s === 'placed') return 'status-info';
   return 'status-pending';
 }
 
@@ -267,7 +267,7 @@ function renderOrdersTable(orders, body) {
   body.innerHTML = '';
 
   if (orders.length === 0) {
-    body.innerHTML = '<tr><td colspan="6" class="cart-empty">No orders yet.</td></tr>';
+    body.innerHTML = '<tr><td colspan="7" class="cart-empty">No orders yet.</td></tr>';
     return;
   }
 
@@ -278,6 +278,15 @@ function renderOrdersTable(orders, body) {
       year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
     });
 
+    const paymentLabel =
+      order.paymentMethod === 'cod' ? 'COD'
+      : order.paymentMethod === 'card' ? `Card ••${(order.paymentReference && order.paymentReference.last4) || '••••'}`
+      : order.paymentMethod === 'upi' ? `UPI` : '—';
+    const paymentStatus = order.paymentStatus || 'Pending';
+    const shipText = order.shipping
+      ? `${order.shipping.address}, ${order.shipping.city}, ${order.shipping.state} ${order.shipping.pincode} • ${order.shipping.phone}`
+      : '—';
+
     const options = ORDER_STATUSES.map(
       (s) => `<option value="${s}" ${s === order.status ? 'selected' : ''}>${s}</option>`
     ).join('');
@@ -285,10 +294,11 @@ function renderOrdersTable(orders, body) {
     const row = document.createElement('tr');
     row.innerHTML = `
       <td class="order-number" style="white-space:nowrap">#${orderNumber}</td>
-      <td>${customer}</td>
+      <td>${customer}<br><small class="text-muted">${shipText}</small></td>
       <td>${orderItemsText(order)}</td>
       <td>${formatCurrency(order.totalAmount)}</td>
       <td style="white-space:nowrap">${date}</td>
+      <td>${paymentLabel}<br><span class="order-status ${orderStatusClass(paymentStatus === 'Paid' ? 'Delivered' : 'Pending')}">${paymentStatus}</span></td>
       <td>
         <div style="display:flex;align-items:center;gap:6px">
           <span class="order-status ${orderStatusClass(order.status)}">${order.status}</span>

@@ -658,7 +658,144 @@ body {
   font-size: 0.85rem;
 }
 
+/* ===== Checkout ===== */
+.checkout-layout {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 24px;
+  margin-top: 20px;
+  align-items: start;
+}
+
+.checkout-form,
+.checkout-summary {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 24px;
+}
+
+.checkout-form h2,
+.checkout-summary h2 {
+  font-size: 1.05rem;
+  margin: 16px 0 12px;
+  color: var(--primary);
+}
+.checkout-form h2:first-child {
+  margin-top: 0;
+}
+
+.pay-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.pay-option {
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 4px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.pay-option:hover {
+  border-color: var(--primary);
+}
+.pay-option input[type='radio'] {
+  margin-right: 10px;
+}
+
+.pay-box {
+  display: inline-flex;
+  flex-direction: column;
+  vertical-align: middle;
+}
+.pay-box small {
+  color: var(--text-muted);
+}
+
+.pay-fields {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 16px;
+  border: 1px dashed #cbd5e1;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.form-row .form-group {
+  flex: 1;
+  min-width: 120px;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.95rem;
+}
+.summary-item small {
+  color: var(--text-muted);
+}
+
+.summary-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--primary);
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 2px solid var(--primary);
+}
+
+.field-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 10px;
+  text-align: center;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* ===== Order meta (user order history) ===== */
+.order-meta {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+  font-size: 0.9rem;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pay-badge {
+  margin-left: 6px;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+}
+
+.text-muted {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
 /* ===== Responsive ===== */
+@media (max-width: 600px) {
+  .checkout-layout {
+    grid-template-columns: 1fr;
+  }
+}
 @media (max-width: 600px) {
   .hero h1 {
     font-size: 1.6rem;

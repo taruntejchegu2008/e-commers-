@@ -12,11 +12,61 @@ const router = express.Router();
 router.post('/', protect, async (req, res) => {
   const deducted = [];
   try {
-    const { products } = req.body;
+    const { products, shipping, paymentMethod, paymentDetails } = req.body;
 
     if (!products || !Array.isArray(products) || products.length === 0) {
       return res.status(400).json({ message: 'Please provide an array of products with productId and quantity' });
     }
+
+    // --- Phase 0: validate shipping + payment details BEFORE touching stock ---
+    const ship = {
+      fullName: typeof (shipping && shipping.fullName) === 'string' ? shipping.fullName.trim() : '',
+      phone: typeof (shipping && shipping.phone) === 'string' ? shipping.phone.trim() : '',
+      address: typeof (shipping && shipping.address) === 'string' ? shipping.address.trim() : '',
+      city: typeof (shipping && shipping.city) === 'string' ? shipping.city.trim() : '',
+      state: typeof (shipping && shipping.state) === 'string' ? shipping.state.trim() : '',
+      pincode: typeof (shipping && shipping.pincode) === 'string' ? shipping.pincode.trim() : '',
+    };
+
+    const missingShip = ['fullName', 'phone', 'address', 'city', 'state', 'pincode'].filter((k) => !ship[k]);
+    if (missingShip.length > 0) {
+      return res.status(400).json({ message: `Shipping details required: ${missingShip.join(', ')}` });
+    }
+    if (!/^[0-9]{10}$/.test(ship.phone)) {
+      return res.status(400).json({ message: 'Phone number must be 10 digits' });
+    }
+    if (!/^[0-9]{6}$/.test(ship.pincode)) {
+      return res.status(400).json({ message: 'Pincode must be 6 digits' });
+    }
+
+    const VALID_PAYMENTS = ['cod', 'card', 'upi'];
+    if (!VALID_PAYMENTS.includes(paymentMethod)) {
+      return res.status(400).json({ message: `Payment method must be one of: ${VALID_PAYMENTS.join(', ')}` });
+    }
+
+    // Mock gateway: card/UPI are considered paid immediately; COD stays pending.
+    let paymentStatus = 'Pending';
+    const paymentReference = {};
+    if (paymentMethod === 'card') {
+      const cardLast4 = (paymentDetails && String(paymentDetails.last4 || '').replace(/\D/g, ''));
+      if (!cardLast4 || cardLast4.length !== 4) {
+        return res.status(400).json({ message: 'Valid card last 4 digits are required' });
+      }
+      paymentStatus = 'Paid';
+      paymentReference.last4 = cardLast4;
+      paymentReference.provider = (paymentDetails && String(paymentDetails.provider || 'Card')).slice(0, 20);
+    } else if (paymentMethod === 'upi') {
+      const upi = (paymentDetails && String(paymentDetails.upiId || '').trim());
+      if (!/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test(upi)) {
+        return res.status(400).json({ message: 'Enter a valid UPI ID (e.g. name@bank)' });
+      }
+      paymentStatus = 'Paid';
+      paymentReference.provider = upi.split('@')[1];
+    } else {
+      paymentStatus = 'Pending'; // COD — paid on delivery
+      paymentReference.provider = 'Cash on Delivery';
+    }
+    paymentReference.transactionId = Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 8).toUpperCase();
 
     // --- Phase 1: validate every item before touching any stock ---
     let totalAmount = 0;
@@ -74,6 +124,10 @@ router.post('/', protect, async (req, res) => {
       products: orderProducts.map((o) => ({ productId: o.productId, quantity: o.quantity })),
       itemsSnapshot,
       totalAmount,
+      shipping: ship,
+      paymentMethod,
+      paymentStatus,
+      paymentReference,
     });
 
     const populatedOrder = await Order.findById(order._id).populate('products.productId', 'name price image');
@@ -119,7 +173,7 @@ router.get('/all', protect, admin, async (req, res) => {
 router.put('/:id/status', protect, admin, async (req, res) => {
   try {
     const { status } = req.body;
-    const allowed = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+    const allowed = ['Placed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
     if (!allowed.includes(status)) {
       return res.status(400).json({ message: `Status must be one of: ${allowed.join(', ')}` });
     }

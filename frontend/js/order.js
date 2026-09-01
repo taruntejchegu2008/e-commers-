@@ -69,13 +69,22 @@ async function initOrdersPage() {
       const s = (status || 'Pending').toLowerCase();
       if (['delivered', 'processing'].includes(s)) return 'status-ok';
       if (s === 'cancelled') return 'status-cancel';
-      if (s === 'shipped') return 'status-info';
+      if (s === 'shipped' || s === 'placed') return 'status-info';
       return 'status-pending';
     }
 
     const ordersHtml = orders
       .map((order) => {
         const status = order.status || 'Pending';
+        const paymentStatus = order.paymentStatus || 'Pending';
+        const paymentLabel =
+          order.paymentMethod === 'cod' ? 'Cash on Delivery'
+          : order.paymentMethod === 'card' ? `Card ••${order.paymentReference && order.paymentReference.last4 || '••••'}`
+          : order.paymentMethod === 'upi' ? `UPI (${order.paymentReference && order.paymentReference.provider || 'UPI'})`
+          : '—';
+        const shippingInfo = order.shipping && order.shipping.address
+          ? `${order.shipping.address}, ${order.shipping.city}, ${order.shipping.state} ${order.shipping.pincode}`
+          : null;
         const itemsHtml = orderLineItems(order)
           .map((it) => `
               <div class="order-item">
@@ -98,6 +107,12 @@ async function initOrdersPage() {
             </div>
             <div class="order-items">${itemsHtml}</div>
             <div class="order-total">Total: ${formatCurrency(order.totalAmount)}</div>
+            <div class="order-meta">
+              <div><strong>Payment:</strong> ${paymentLabel}
+                <span class="order-status ${statusClass(paymentStatus === 'Paid' ? 'Delivered' : 'Pending')} pay-badge">${paymentStatus}</span>
+              </div>
+              ${shippingInfo ? `<div><strong>Deliver to:</strong> ${shippingInfo}</div>` : ''}
+            </div>
           </div>
         `;
       })

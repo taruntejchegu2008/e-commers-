@@ -109,68 +109,9 @@ function renderCartPage() {
     </div>
   `;
 
-  document.getElementById('checkout-btn').addEventListener('click', checkout);
-}
-
-// --- Checkout: POST cart to /api/orders ---
-async function checkout() {
-  const token = getToken();
-  if (!token) {
-    window.location.href = 'login.html';
-    return;
-  }
-
-  const cart = getCart();
-  if (cart.length === 0) return;
-
-  const products = cart.map((item) => ({
-    productId: item.productId,
-    quantity: item.quantity,
-  }));
-
-  const msg = document.getElementById('message');
-  const btn = document.getElementById('checkout-btn');
-
-  // Disable button while submitting to prevent duplicate orders
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = 'Placing order...';
-  }
-
-  try {
-    const res = await fetch(`${API_URL}/orders`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ products }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      // Re-enable button on failure
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = 'Proceed to Checkout';
-      }
-      if (msg) showMessage(data.message || 'Checkout failed', 'error');
-      else alert(data.message || 'Checkout failed');
-      return;
-    }
-
-    // Clear cart on success
-    localStorage.removeItem('cart');
-    updateCartCount();
-
-    if (msg) showMessage('Order placed successfully! Redirecting to orders...', 'success');
-    else alert('Order placed successfully!');
-
-    setTimeout(() => {
-      window.location.href = 'orders.html';
-    }, 1000);
-  } catch (err) {
-    if (msg) showMessage('Network error. Is the server running?', 'error');
-    else alert('Network error. Is the server running?');
-  }
+  document.getElementById('checkout-btn').addEventListener('click', () => {
+    window.location.href = 'checkout.html';
+  });
 }
 
 // --- Initialise cart page on load ---

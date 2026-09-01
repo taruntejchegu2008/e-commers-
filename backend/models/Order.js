@@ -27,8 +27,34 @@ const OrderSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'],
+    enum: ['Placed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'],
+    default: 'Placed',
+  },
+  // Customer delivery details collected at checkout
+  shipping: {
+    fullName: { type: String, trim: true },
+    phone: { type: String, trim: true },
+    address: { type: String, trim: true },
+    city: { type: String, trim: true },
+    state: { type: String, trim: true },
+    pincode: { type: String, trim: true },
+  },
+  // Payment method + state. COD starts as Pending (paid on delivery);
+  // card/UPI are marked Paid after the (mock) gateway confirms.
+  paymentMethod: {
+    type: String,
+    enum: ['cod', 'card', 'upi'],
+  },
+  paymentStatus: {
+    type: String,
+    enum: ['Pending', 'Paid', 'Failed'],
     default: 'Pending',
+  },
+  // Lightweight masked payment reference (mock gateway): card last4 / UPI provider
+  paymentReference: {
+    last4: { type: String },
+    provider: { type: String },
+    transactionId: { type: String },
   },
   // Snapshot of line items so the order stays readable even if a product is
   // later deleted or edited. productId is kept for reference.
