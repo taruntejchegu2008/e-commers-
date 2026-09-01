@@ -21,6 +21,16 @@ const ProductSchema = new mongoose.Schema({
     min: 0,
     default: 0,
   },
+  category: {
+    type: String,
+    trim: true,
+    default: 'General',
+  },
+  brand: {
+    type: String,
+    trim: true,
+    default: '',
+  },
   image: {
     type: String,
     default: 'https://via.placeholder.com/300x300?text=No+Image',

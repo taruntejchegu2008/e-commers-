@@ -5,13 +5,20 @@ const { admin } = require('../middleware/adminMiddleware');
 
 const router = express.Router();
 
-// GET /api/products — list all products, supports ?search= query
+// GET /api/products — list all products.
+// Supports ?search= (name/category/brand/description) and ?category= filters.
 router.get('/', async (req, res) => {
   try {
-    const { search } = req.query;
+    const { search, category } = req.query;
     let query = {};
 
-    // If search param provided, filter by name (case-insensitive partial match)
+    // Category filter (exact match).
+    if (category && String(category).trim()) {
+      query.category = String(category).trim();
+    }
+
+    // If search param provided, match across name, brand, category,
+    // and description (case-insensitive partial match).
     if (search) {
       const term = String(search).trim();
 
@@ -23,13 +30,29 @@ router.get('/', async (req, res) => {
       // Escape regex metacharacters so user input is treated literally
       // (prevents ReDoS via crafted patterns like (a+)+$ and query abuse)
       const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      query.name = { $regex: escaped, $options: 'i' };
+      const regex = { $regex: escaped, $options: 'i' };
+      query.$or = [
+        { name: regex },
+        { brand: regex },
+        { category: regex },
+        { description: regex },
+      ];
     }
 
     const products = await Product.find(query).sort({ createdAt: -1 });
     res.json(products);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching products', error: error.message });
+  }
+});
+
+// GET /api/products/categories — distinct list of product categories.
+router.get('/categories', async (req, res) => {
+  try {
+    const categories = await Product.distinct('category');
+    res.json(categories);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching categories', error: error.message });
   }
 });
 
@@ -49,7 +72,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/products — create a product (admin-only)
 router.post('/', protect, admin, async (req, res) => {
   try {
-    const { name, description, price, stock, image } = req.body;
+    const { name, description, price, stock, image, category, brand } = req.body;
 
     const trimmedName = String(name || '').trim();
     const trimmedDescription = String(description || '').trim();
@@ -70,6 +93,8 @@ router.post('/', protect, admin, async (req, res) => {
       description: trimmedDescription,
       price: Number(price),
       stock: Number(stock),
+      category: String(category || '').trim() || 'General',
+      brand: String(brand || '').trim(),
       image: String(image || '').trim() || 'https://via.placeholder.com/300x300?text=No+Image',
     });
     res.status(201).json(product);
@@ -81,7 +106,7 @@ router.post('/', protect, admin, async (req, res) => {
 // PUT /api/products/:id — update a product (admin-only)
 router.put('/:id', protect, admin, async (req, res) => {
   try {
-    const { name, description, price, stock, image } = req.body;
+    const { name, description, price, stock, image, category, brand } = req.body;
 
     const updateData = {};
     if (name !== undefined) updateData.name = String(name).trim();
@@ -89,6 +114,8 @@ router.put('/:id', protect, admin, async (req, res) => {
     if (price !== undefined) updateData.price = Number(price);
     if (stock !== undefined) updateData.stock = Number(stock);
     if (image !== undefined) updateData.image = String(image).trim();
+    if (category !== undefined) updateData.category = String(category).trim();
+    if (brand !== undefined) updateData.brand = String(brand).trim();
 
     // Clear validation errors with 400, never a silent 500
     if (updateData.name !== undefined && !updateData.name) {
