@@ -113,6 +113,40 @@ const formatCurrency = (amount) => `$${Number(amount).toFixed(2)}`;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const isValidEmail = (email) => EMAIL_REGEX.test(email);
 
+// --- Broken-image fallback: render a local SVG placeholder ---
+// Museums the product name so cards stay readable even when an
+// external image host (e.g. via.placeholder.com) is unreachable.
+function svgPlaceholder(text) {
+  const label = String(text || 'Product').replace(/[^\w\s]/g, '').trim() || 'Product';
+  const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#14b8a6'];
+  const color = colors[(label.length + (label.charCodeAt(0) || 0)) % colors.length];
+  const esc = label.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">` +
+    `<rect width="300" height="300" fill="${color}"/>` +
+    `<text x="150" y="150" fill="#ffffff" font-family="Arial, sans-serif" font-size="22" font-weight="bold" text-anchor="middle" dominant-baseline="middle">${esc}</text>` +
+    `</svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
+// One capture-phase listener handles every <img> on the page,
+// even images inserted later by JS. Guarded so it only runs once.
+document.addEventListener(
+  'error',
+  (event) => {
+    const img = event.target;
+    if (!img || img.tagName !== 'IMG' || img.dataset.fallback) return;
+    img.dataset.fallback = '1';
+    const src = String(img.src || '');
+    const textMatch = src.match(/[?&]text=([^&]+)/);
+    const text = textMatch
+      ? decodeURIComponent(textMatch[1].replace(/\+/g, ' '))
+      : img.alt || 'Product';
+    img.src = svgPlaceholder(text);
+  },
+  true
+);
+
 // --- Initialize on every page ---
 document.addEventListener('DOMContentLoaded', () => {
   // Logout button handler

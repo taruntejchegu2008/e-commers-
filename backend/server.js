@@ -48,8 +48,25 @@ if (process.env.TRUST_PROXY === 'true') {
 // ============================================================
 // Helmet: set secure HTTP headers (CSP, X-Frame-Options,
 // nosniff, HSTS, etc.). Disable CSP in dev if you inline scripts.
+// CSP img-src allows 'self', data: (uploaded previews), plus the
+// placeholder host used by seed products and the Supabase domain
+// that serves uploaded product images.
 // ============================================================
-app.use(helmet());
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseImgHost = supabaseUrl.replace(/^https?:\/\//, '');
+const imgSources = ["'self'", 'data:', 'https://via.placeholder.com'];
+if (supabaseImgHost) imgSources.push(supabaseUrl.startsWith('http://') ? 'http://' + supabaseImgHost : 'https://' + supabaseImgHost);
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        'img-src': imgSources,
+      },
+    },
+  })
+);
 
 // Parse incoming JSON request bodies (before sanitization)
 app.use(express.json());
